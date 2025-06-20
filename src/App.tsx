@@ -9,6 +9,8 @@ import { Dashboard } from './components/Dashboard';
 import { TranslationPanel } from './components/TranslationPanel';
 import { ExportPanel } from './components/ExportPanel';
 import { AuthGuard } from './components/AuthGuard';
+import { ApiKeyManagement } from './components/ApiKeyManagement';
+import { PricingPlans } from './components/PricingPlans';
 import { analyzeVideo, saveVideoSummary, updateVideoHighlights, translateAndSaveVideoSummary } from './services/videoService';
 import { VideoSummary, HighlightedSegment } from './types';
 import { useAuth } from './hooks/useAuth';
@@ -17,7 +19,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [videoData, setVideoData] = useState<VideoSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'analyze' | 'dashboard'>('analyze');
+  const [currentView, setCurrentView] = useState<'analyze' | 'dashboard' | 'api' | 'pricing'>('analyze');
   const [isTranslating, setIsTranslating] = useState(false);
   const { user } = useAuth();
 
@@ -96,6 +98,13 @@ function App() {
     }
   };
 
+  const navigationItems = [
+    { id: 'analyze', label: 'Analyze Video' },
+    { id: 'dashboard', label: 'My Dashboard' },
+    { id: 'api', label: 'API Keys' },
+    { id: 'pricing', label: 'Pricing' },
+  ];
+
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-50">
@@ -104,33 +113,37 @@ function App() {
         <main className="container mx-auto py-8">
           {/* Navigation */}
           <div className="max-w-4xl mx-auto px-4 mb-8">
-            <div className="flex items-center justify-center space-x-4">
-              <button
-                onClick={() => setCurrentView('analyze')}
-                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                  currentView === 'analyze'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                Analyze Video
-              </button>
-              <button
-                onClick={() => setCurrentView('dashboard')}
-                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                  currentView === 'dashboard'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                My Dashboard
-              </button>
+            <div className="flex items-center justify-center space-x-4 overflow-x-auto">
+              {navigationItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setCurrentView(item.id as any)}
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                    currentView === item.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {currentView === 'dashboard' ? (
+          {/* Content based on current view */}
+          {currentView === 'dashboard' && (
             <Dashboard onSelectVideo={handleSelectVideo} />
-          ) : (
+          )}
+
+          {currentView === 'api' && (
+            <ApiKeyManagement />
+          )}
+
+          {currentView === 'pricing' && (
+            <PricingPlans />
+          )}
+
+          {currentView === 'analyze' && (
             <>
               <URLInput onSubmit={handleVideoSubmit} isLoading={isLoading} />
               
