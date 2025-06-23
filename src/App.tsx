@@ -14,6 +14,7 @@ import { PricingPlans } from './components/PricingPlans';
 import { analyzeVideo, saveVideoSummary, updateVideoHighlights, translateAndSaveVideoSummary } from './services/videoService';
 import { VideoSummary, HighlightedSegment } from './types';
 import { useAuth } from './hooks/useAuth';
+import { useFreeTrial } from './hooks/useFreeTrial';
 
 function App() {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,8 +23,15 @@ function App() {
   const [currentView, setCurrentView] = useState<'analyze' | 'dashboard' | 'api' | 'pricing'>('analyze');
   const [isTranslating, setIsTranslating] = useState(false);
   const { user } = useAuth();
+  const { freeUsesRemaining, hasExceededLimit, consumeFreeTrial } = useFreeTrial();
 
   const handleVideoSubmit = async (url: string) => {
+    // Check if user can analyze video
+    if (!user && hasExceededLimit) {
+      setError('Free trial expired. Please sign up to continue using Transcripto.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setVideoData(null);
@@ -33,6 +41,11 @@ function App() {
       
       if (response.success && response.data) {
         setVideoData(response.data);
+        
+        // Consume free trial if user is not authenticated
+        if (!user) {
+          consumeFreeTrial();
+        }
         
         // Save to database if user is logged in
         if (user) {
@@ -100,9 +113,11 @@ function App() {
 
   const navigationItems = [
     { id: 'analyze', label: 'Analyze Video' },
-    { id: 'dashboard', label: 'My Dashboard' },
-    { id: 'api', label: 'API Keys' },
-    { id: 'pricing', label: 'Pricing' },
+    ...(user ? [
+      { id: 'dashboard', label: 'My Dashboard' },
+      { id: 'api', label: 'API Keys' },
+      { id: 'pricing', label: 'Pricing' },
+    ] : [])
   ];
 
   return (
@@ -131,21 +146,26 @@ function App() {
           </div>
 
           {/* Content based on current view */}
-          {currentView === 'dashboard' && (
+          {currentView === 'dashboard' && user && (
             <Dashboard onSelectVideo={handleSelectVideo} />
           )}
 
-          {currentView === 'api' && (
+          {currentView === 'api' && user && (
             <ApiKeyManagement />
           )}
 
-          {currentView === 'pricing' && (
+          {currentView === 'pricing' && user && (
             <PricingPlans />
           )}
 
           {currentView === 'analyze' && (
             <>
-              <URLInput onSubmit={handleVideoSubmit} isLoading={isLoading} />
+              <URLInput 
+                onSubmit={handleVideoSubmit} 
+                isLoading={isLoading}
+                canAnalyze={user || freeUsesRemaining > 0}
+                freeUsesRemaining={user ? null : freeUsesRemaining}
+              />
               
               {error && <ErrorMessage message={error} onRetry={handleRetry} />}
               
@@ -176,13 +196,15 @@ function App() {
                     </div>
                     
                     <div className="space-y-6">
-                      <TranslationPanel
-                        originalLanguage={videoData.language || 'en'}
-                        availableLanguages={[]}
-                        onTranslate={handleTranslate}
-                        translatedContent={videoData.translatedSummary}
-                        isTranslating={isTranslating}
-                      />
+                      {user && (
+                        <TranslationPanel
+                          originalLanguage={videoData.language || 'en'}
+                          availableLanguages={[]}
+                          onTranslate={handleTranslate}
+                          translatedContent={videoData.translatedSummary}
+                          isTranslating={isTranslating}
+                        />
+                      )}
                       
                       <ExportPanel
                         videoData={videoData}

@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { Search, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Search, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
 
 interface URLInputProps {
   onSubmit: (url: string) => void;
   isLoading: boolean;
+  canAnalyze: boolean;
+  freeUsesRemaining: number | null;
 }
 
-export const URLInput: React.FC<URLInputProps> = ({ onSubmit, isLoading }) => {
+export const URLInput: React.FC<URLInputProps> = ({ 
+  onSubmit, 
+  isLoading, 
+  canAnalyze,
+  freeUsesRemaining 
+}) => {
   const [url, setUrl] = useState('');
   const [isValid, setIsValid] = useState<boolean | null>(null);
 
@@ -28,7 +35,7 @@ export const URLInput: React.FC<URLInputProps> = ({ onSubmit, isLoading }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isValid && url.trim()) {
+    if (isValid && url.trim() && canAnalyze) {
       onSubmit(url.trim());
     }
   };
@@ -43,16 +50,20 @@ export const URLInput: React.FC<URLInputProps> = ({ onSubmit, isLoading }) => {
             onChange={handleChange}
             placeholder="Paste your YouTube video URL here..."
             className={`w-full px-4 py-4 pr-12 text-lg border-2 rounded-xl transition-all duration-300 focus:outline-none focus:ring-4 ${
-              isValid === null
+              !canAnalyze
+                ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
+                : isValid === null
                 ? 'border-gray-300 focus:border-blue-500 focus:ring-blue-500/20'
                 : isValid
                 ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
                 : 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
             }`}
-            disabled={isLoading}
+            disabled={isLoading || !canAnalyze}
           />
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-            {isValid === null ? (
+            {!canAnalyze ? (
+              <Lock className="w-6 h-6 text-gray-400" />
+            ) : isValid === null ? (
               <Search className="w-6 h-6 text-gray-400" />
             ) : isValid ? (
               <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -68,12 +79,25 @@ export const URLInput: React.FC<URLInputProps> = ({ onSubmit, isLoading }) => {
             <span>Please enter a valid YouTube URL</span>
           </p>
         )}
+
+        {!canAnalyze && (
+          <p className="text-orange-600 text-sm flex items-center space-x-2">
+            <Lock className="w-4 h-4" />
+            <span>Free trial expired. Please sign up to continue.</span>
+          </p>
+        )}
+
+        {freeUsesRemaining !== null && freeUsesRemaining > 0 && (
+          <p className="text-blue-600 text-sm text-center">
+            {freeUsesRemaining} free {freeUsesRemaining === 1 ? 'analysis' : 'analyses'} remaining
+          </p>
+        )}
         
         <button
           type="submit"
-          disabled={!isValid || isLoading}
+          disabled={!isValid || isLoading || !canAnalyze}
           className={`w-full py-4 px-6 text-lg font-semibold rounded-xl transition-all duration-300 ${
-            isValid && !isLoading
+            isValid && !isLoading && canAnalyze
               ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
@@ -83,6 +107,8 @@ export const URLInput: React.FC<URLInputProps> = ({ onSubmit, isLoading }) => {
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               <span>Analyzing Video...</span>
             </div>
+          ) : !canAnalyze ? (
+            'Sign Up to Continue'
           ) : (
             'Summarize Video'
           )}
