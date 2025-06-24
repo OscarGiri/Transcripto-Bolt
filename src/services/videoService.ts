@@ -24,6 +24,8 @@ export const saveVideoSummary = async (
         language: videoData.language || 'en',
         translated_summary: videoData.translatedSummary || {},
         translated_transcript: videoData.translatedTranscript || {},
+      }, {
+        onConflict: 'user_id,video_id'
       });
 
     if (error) throw error;
