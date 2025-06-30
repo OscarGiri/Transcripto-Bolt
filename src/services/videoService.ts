@@ -138,8 +138,141 @@ export const getUserVideoSummaries = async (
   }
 };
 
-// Enhanced mock API with auto-highlighting
+// Generate different mock data based on video ID to simulate different videos
+const generateMockData = (videoId: string): VideoSummary => {
+  // Create different content based on video ID
+  const videoVariants = [
+    {
+      title: 'The Science of Productivity: What Actually Works',
+      channelName: 'Learning Lab',
+      summary: 'This comprehensive video explores evidence-based productivity techniques that have been scientifically proven to enhance performance and well-being. The presenter discusses the importance of deep work, time-blocking strategies, and the psychological principles behind effective habit formation.',
+      bulletPoints: [
+        'Deep work sessions of 90-120 minutes maximize cognitive performance and creative output',
+        'Time-blocking with specific themes reduces decision fatigue and improves task completion rates',
+        'The Pomodoro Technique works best when combined with strategic longer breaks every 4 cycles',
+        'Environmental design has a profound impact on focus - minimize visual distractions and optimize lighting',
+        'Sleep quality directly correlates with next-day productivity - aim for 7-9 hours of consistent sleep',
+        'Single-tasking beats multitasking by up to 40% in both speed and accuracy of task completion'
+      ],
+      keyQuote: 'Productivity isn\'t about doing more things faster - it\'s about doing the right things with complete focus and intentionality.',
+    },
+    {
+      title: 'Understanding Machine Learning: A Beginner\'s Guide',
+      channelName: 'Tech Explained',
+      summary: 'An accessible introduction to machine learning concepts, covering supervised and unsupervised learning, neural networks, and real-world applications. The video breaks down complex algorithms into understandable concepts for beginners.',
+      bulletPoints: [
+        'Machine learning is a subset of AI that enables computers to learn without explicit programming',
+        'Supervised learning uses labeled data to train models for prediction and classification tasks',
+        'Unsupervised learning finds hidden patterns in data without predefined labels or outcomes',
+        'Neural networks mimic the human brain structure to process complex data relationships',
+        'Feature engineering is crucial for model performance and requires domain expertise',
+        'Cross-validation helps prevent overfitting and ensures model generalization to new data'
+      ],
+      keyQuote: 'Machine learning is not magic - it\'s mathematics applied to data with the goal of finding patterns that humans might miss.',
+    },
+    {
+      title: 'The Future of Renewable Energy: Solar and Wind Power',
+      channelName: 'Green Tech Today',
+      summary: 'This video examines the latest developments in renewable energy technology, focusing on solar panel efficiency improvements and wind turbine innovations. It discusses the economic and environmental impact of transitioning to clean energy sources.',
+      bulletPoints: [
+        'Solar panel efficiency has increased from 15% to over 22% in the last decade',
+        'Wind turbines are becoming larger and more efficient, with offshore installations leading growth',
+        'Energy storage solutions like lithium-ion batteries are solving intermittency challenges',
+        'Grid modernization is essential for integrating renewable energy sources effectively',
+        'Government incentives and falling costs are accelerating renewable energy adoption',
+        'Renewable energy jobs are growing faster than traditional energy sector employment'
+      ],
+      keyQuote: 'The transition to renewable energy is not just an environmental imperative - it\'s becoming an economic necessity.',
+    }
+  ];
+
+  // Use video ID to determine which variant to use
+  const variantIndex = videoId.charCodeAt(0) % videoVariants.length;
+  const variant = videoVariants[variantIndex];
+
+  return {
+    videoId,
+    title: variant.title,
+    thumbnail: `https://images.pexels.com/photos/${3184338 + variantIndex}/pexels-photo-${3184338 + variantIndex}.jpeg?auto=compress&cs=tinysrgb&w=800`,
+    duration: `${Math.floor(Math.random() * 10) + 8}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
+    channelName: variant.channelName,
+    language: 'en',
+    summary: variant.summary,
+    bulletPoints: variant.bulletPoints,
+    keyQuote: variant.keyQuote,
+    transcript: [
+      {
+        timestamp: '00:00',
+        text: `Welcome to ${variant.channelName}. Today we're exploring ${variant.title.toLowerCase()}.`,
+        start: 0
+      },
+      {
+        timestamp: '00:15',
+        text: 'Let\'s dive into the key concepts and understand what makes this topic so important.',
+        start: 15
+      },
+      {
+        timestamp: '00:32',
+        text: variant.summary.substring(0, 100) + '...',
+        start: 32
+      },
+      {
+        timestamp: '01:05',
+        text: 'This is a fundamental principle that many people overlook in their approach.',
+        start: 65
+      },
+      {
+        timestamp: '01:22',
+        text: 'Research shows that understanding these concepts can significantly improve outcomes.',
+        start: 82
+      },
+      {
+        timestamp: '01:45',
+        text: 'Let me share some practical examples that demonstrate these principles in action.',
+        start: 105
+      },
+      {
+        timestamp: '02:15',
+        text: 'The data clearly supports this approach, and the results speak for themselves.',
+        start: 135
+      },
+      {
+        timestamp: '02:35',
+        text: 'Implementation is key - knowing the theory is only half the battle.',
+        start: 155
+      },
+      {
+        timestamp: '03:10',
+        text: 'Many experts in the field agree that this is a game-changing approach.',
+        start: 190
+      },
+      {
+        timestamp: '03:45',
+        text: variant.keyQuote,
+        start: 225
+      }
+    ],
+    highlightedSegments: [
+      {
+        segmentIndex: 2,
+        type: 'key_moment',
+        timestamp: '00:32',
+        text: variant.summary.substring(0, 100) + '...',
+        reason: 'Key concept introduction'
+      },
+      {
+        segmentIndex: 9,
+        type: 'important',
+        timestamp: '03:45',
+        text: variant.keyQuote,
+        reason: 'Main takeaway and memorable quote'
+      }
+    ]
+  };
+};
+
 export const analyzeVideo = async (url: string): Promise<ApiResponse> => {
+  // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 3000));
   
   const videoId = extractVideoId(url);
@@ -151,111 +284,8 @@ export const analyzeVideo = async (url: string): Promise<ApiResponse> => {
     };
   }
   
-  // Enhanced mock data with auto-highlighted segments
-  const mockVideoData: VideoSummary = {
-    videoId,
-    title: 'The Science of Productivity: What Actually Works',
-    thumbnail: 'https://images.pexels.com/photos/3184338/pexels-photo-3184338.jpeg?auto=compress&cs=tinysrgb&w=800',
-    duration: '12:34',
-    channelName: 'Learning Lab',
-    language: 'en',
-    summary: 'This comprehensive video explores evidence-based productivity techniques that have been scientifically proven to enhance performance and well-being. The presenter discusses the importance of deep work, time-blocking strategies, and the psychological principles behind effective habit formation. Key insights include the role of focused attention in creative problem-solving and how strategic breaks can actually boost overall productivity rather than hinder it.',
-    bulletPoints: [
-      'Deep work sessions of 90-120 minutes maximize cognitive performance and creative output',
-      'Time-blocking with specific themes reduces decision fatigue and improves task completion rates',
-      'The Pomodoro Technique works best when combined with strategic longer breaks every 4 cycles',
-      'Environmental design has a profound impact on focus - minimize visual distractions and optimize lighting',
-      'Sleep quality directly correlates with next-day productivity - aim for 7-9 hours of consistent sleep',
-      'Single-tasking beats multitasking by up to 40% in both speed and accuracy of task completion'
-    ],
-    keyQuote: 'Productivity isn\'t about doing more things faster - it\'s about doing the right things with complete focus and intentionality.',
-    transcript: [
-      {
-        timestamp: '00:00',
-        text: 'Welcome back to Learning Lab. Today we\'re diving deep into the science of productivity and what actually works versus what we think works.',
-        start: 0
-      },
-      {
-        timestamp: '00:15',
-        text: 'Most productivity advice is based on intuition rather than research. But what does the science actually tell us about peak performance?',
-        start: 15
-      },
-      {
-        timestamp: '00:32',
-        text: 'Let\'s start with the concept of deep work. Research from Cal Newport and others shows that our brains can sustain focused attention for about 90 to 120 minutes at a time.',
-        start: 32
-      },
-      {
-        timestamp: '01:05',
-        text: 'This is why the traditional 8-hour workday with constant interruptions is actually counterproductive to getting meaningful work done.',
-        start: 65
-      },
-      {
-        timestamp: '01:22',
-        text: 'Time-blocking is another strategy that\'s gained popularity, but it only works when you theme your blocks. Random time slots don\'t reduce cognitive load.',
-        start: 82
-      },
-      {
-        timestamp: '01:45',
-        text: 'The Pomodoro Technique - working in 25-minute bursts - can be effective, but research suggests it works best when you take longer breaks every 4 cycles.',
-        start: 105
-      },
-      {
-        timestamp: '02:15',
-        text: 'Here\'s something most people don\'t consider: your physical environment has a massive impact on your ability to focus and be productive.',
-        start: 135
-      },
-      {
-        timestamp: '02:35',
-        text: 'Visual clutter increases cortisol levels and reduces working memory capacity. A clean, organized workspace isn\'t just aesthetic - it\'s functional.',
-        start: 155
-      },
-      {
-        timestamp: '03:10',
-        text: 'Sleep is perhaps the most underrated productivity tool. Studies show that even one night of poor sleep can reduce cognitive performance by up to 40%.',
-        start: 190
-      },
-      {
-        timestamp: '03:45',
-        text: 'Finally, let\'s talk about multitasking. Despite what many believe, the human brain cannot truly multitask. What we call multitasking is actually task-switching.',
-        start: 225
-      },
-      {
-        timestamp: '04:20',
-        text: 'Every time we switch between tasks, there\'s a cognitive cost. Research shows that single-tasking beats multitasking by up to 40% in both speed and accuracy.',
-        start: 260
-      },
-      {
-        timestamp: '04:55',
-        text: 'Remember, productivity isn\'t about doing more things faster - it\'s about doing the right things with complete focus and intentionality.',
-        start: 295
-      }
-    ],
-    // Auto-generated highlights based on content analysis
-    highlightedSegments: [
-      {
-        segmentIndex: 2,
-        type: 'key_moment',
-        timestamp: '00:32',
-        text: 'Let\'s start with the concept of deep work. Research from Cal Newport and others shows that our brains can sustain focused attention for about 90 to 120 minutes at a time.',
-        reason: 'Key research finding about attention spans'
-      },
-      {
-        segmentIndex: 8,
-        type: 'important',
-        timestamp: '03:10',
-        text: 'Sleep is perhaps the most underrated productivity tool. Studies show that even one night of poor sleep can reduce cognitive performance by up to 40%.',
-        reason: 'Critical statistic about sleep impact'
-      },
-      {
-        segmentIndex: 11,
-        type: 'key_moment',
-        timestamp: '04:55',
-        text: 'Remember, productivity isn\'t about doing more things faster - it\'s about doing the right things with complete focus and intentionality.',
-        reason: 'Main takeaway and memorable quote'
-      }
-    ]
-  };
+  // Generate mock data based on video ID to ensure different videos return different content
+  const mockVideoData = generateMockData(videoId);
   
   return {
     success: true,

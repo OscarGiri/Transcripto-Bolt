@@ -69,8 +69,8 @@ function App() {
     // Extract video ID to check if it's the same video
     const newVideoId = extractVideoId(url);
     
-    // If it's the same video, don't reprocess
-    if (newVideoId && newVideoId === currentVideoId && videoData) {
+    if (!newVideoId) {
+      setError('Invalid YouTube URL. Please check the URL and try again.');
       return;
     }
 
@@ -85,7 +85,7 @@ function App() {
       return;
     }
 
-    // Immediately clear all previous state
+    // Always clear previous state and start fresh analysis
     setVideoData(null);
     setCurrentVideoId(null);
     setError(null);
@@ -95,10 +95,8 @@ function App() {
       const response = await analyzeVideo(url);
       
       if (response.success && response.data) {
-        // Set the new video ID first
+        // Set the new video ID and data
         setCurrentVideoId(response.data.videoId);
-        
-        // Then set the video data
         setVideoData(response.data);
         
         // Consume free trial if user is not authenticated
@@ -267,6 +265,15 @@ function App() {
               
               {error && <ErrorMessage message={error} onRetry={handleRetry} />}
               
+              {/* Loading state */}
+              {isLoading && (
+                <div className="max-w-2xl mx-auto px-4 text-center py-12">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-gray-600">Analyzing your video...</p>
+                  <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
+                </div>
+              )}
+              
               {/* Only show video data if we have it AND we're not loading */}
               {videoData && !isLoading && (
                 <div className="max-w-6xl mx-auto px-4 space-y-8">
@@ -321,14 +328,6 @@ function App() {
                       />
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Loading state */}
-              {isLoading && (
-                <div className="max-w-2xl mx-auto px-4 text-center py-12">
-                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-600">Analyzing your video...</p>
                 </div>
               )}
             </>
