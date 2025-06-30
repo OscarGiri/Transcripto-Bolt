@@ -61,14 +61,16 @@ function App() {
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    // Clear previous state immediately
     setVideoData(null);
+    setError(null);
+    setIsLoading(true);
 
     try {
       const response = await analyzeVideo(url);
       
       if (response.success && response.data) {
+        // Set new video data
         setVideoData(response.data);
         
         // Consume free trial if user is not authenticated
@@ -102,8 +104,9 @@ function App() {
   };
 
   const handleSelectVideo = (video: VideoSummary) => {
-    setVideoData(video);
+    // Clear any existing error when selecting a video from dashboard
     setError(null);
+    setVideoData(video);
     setCurrentView('analyze');
   };
 
@@ -234,7 +237,7 @@ function App() {
               
               {error && <ErrorMessage message={error} onRetry={handleRetry} />}
               
-              {videoData && (
+              {videoData && !isLoading && (
                 <div className="max-w-6xl mx-auto px-4 space-y-8">
                   <VideoPreview
                     title={videoData.title}
