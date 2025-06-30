@@ -89,7 +89,7 @@ export const useUserPlan = (user: User | null) => {
       
       // Get usage data from video_summaries table
       const today = new Date().toISOString().split('T')[0];
-      const thisMonth = new Date().toISOString().substring(0, 7);
+      const thisMonth = new Date().toISOString().substring(0, 7) + '-01';
 
       const { data: dailyData } = await supabase
         .from('video_summaries')
