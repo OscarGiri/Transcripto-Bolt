@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { URLInput } from './components/URLInput';
 import { VideoPreview } from './components/VideoPreview';
@@ -24,6 +24,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'analyze' | 'dashboard' | 'api' | 'pricing'>('analyze');
   const [isTranslating, setIsTranslating] = useState(false);
+  const [currentVideoId, setCurrentVideoId] = useState<string | null>(null);
   const [restrictionModal, setRestrictionModal] = useState<{
     isOpen: boolean;
     feature: string;
@@ -40,6 +41,15 @@ function App() {
   const { freeUsesRemaining, hasExceededLimit, consumeFreeTrial } = useFreeTrial();
   const userPlan = useUserPlan(user);
 
+  // Clear video data when switching views
+  useEffect(() => {
+    if (currentView !== 'analyze') {
+      setVideoData(null);
+      setCurrentVideoId(null);
+      setError(null);
+    }
+  }, [currentView]);
+
   const showFeatureRestriction = (feature: string, requiredPlan: 'pro' | 'team', description: string) => {
     setRestrictionModal({
       isOpen: true,
@@ -49,7 +59,21 @@ function App() {
     });
   };
 
+  const extractVideoId = (url: string): string | null => {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
   const handleVideoSubmit = async (url: string) => {
+    // Extract video ID to check if it's the same video
+    const newVideoId = extractVideoId(url);
+    
+    // If it's the same video, don't reprocess
+    if (newVideoId && newVideoId === currentVideoId && videoData) {
+      return;
+    }
+
     // Check if user can analyze video
     if (!user && hasExceededLimit) {
       setError('Free trial expired. Please sign up to continue using Transcripto.');
@@ -61,8 +85,9 @@ function App() {
       return;
     }
 
-    // Clear previous state immediately
+    // Immediately clear all previous state
     setVideoData(null);
+    setCurrentVideoId(null);
     setError(null);
     setIsLoading(true);
 
@@ -70,7 +95,10 @@ function App() {
       const response = await analyzeVideo(url);
       
       if (response.success && response.data) {
-        // Set new video data
+        // Set the new video ID first
+        setCurrentVideoId(response.data.videoId);
+        
+        // Then set the video data
         setVideoData(response.data);
         
         // Consume free trial if user is not authenticated
@@ -101,11 +129,13 @@ function App() {
   const handleRetry = () => {
     setError(null);
     setVideoData(null);
+    setCurrentVideoId(null);
   };
 
   const handleSelectVideo = (video: VideoSummary) => {
     // Clear any existing error when selecting a video from dashboard
     setError(null);
+    setCurrentVideoId(video.videoId);
     setVideoData(video);
     setCurrentView('analyze');
   };
@@ -237,6 +267,7 @@ function App() {
               
               {error && <ErrorMessage message={error} onRetry={handleRetry} />}
               
+              {/* Only show video data if we have it AND we're not loading */}
               {videoData && !isLoading && (
                 <div className="max-w-6xl mx-auto px-4 space-y-8">
                   <VideoPreview
@@ -290,6 +321,14 @@ function App() {
                       />
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Loading state */}
+              {isLoading && (
+                <div className="max-w-2xl mx-auto px-4 text-center py-12">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-gray-600">Analyzing your video...</p>
                 </div>
               )}
             </>
