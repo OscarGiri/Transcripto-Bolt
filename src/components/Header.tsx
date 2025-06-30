@@ -1,18 +1,38 @@
 import React, { useState } from 'react';
-import { Video, Sparkles, LogIn } from 'lucide-react';
+import { Video, Sparkles, LogIn, Clock, Zap } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { useFreeTrial } from '../hooks/useFreeTrial';
+import { useUsageTracking } from '../hooks/useUsageTracking';
 import { useUserPlan } from '../hooks/useUserPlan';
 import { UserMenu } from './UserMenu';
 import { AuthModal } from './AuthModal';
 import { PlanBadge } from './PlanBadge';
-import { UsageMeter } from './UsageMeter';
 
 export const Header: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user, loading } = useAuth();
-  const { freeUsesRemaining } = useFreeTrial();
+  const { usageData, loading: usageLoading } = useUsageTracking(user);
   const userPlan = useUserPlan(user);
+
+  const getTimeUntilReset = () => {
+    const now = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
+    const msUntilReset = tomorrow.getTime() - now.getTime();
+    const hoursUntilReset = Math.floor(msUntilReset / (1000 * 60 * 60));
+    
+    if (hoursUntilReset > 1) {
+      return `${hoursUntilReset}h`;
+    }
+    const minutesUntilReset = Math.floor((msUntilReset % (1000 * 60 * 60)) / (1000 * 60));
+    return `${minutesUntilReset}m`;
+  };
+
+  const getRemainingUses = () => {
+    if (usageData.planType !== 'free') return 999;
+    return Math.max(0, usageData.dailyLimit - usageData.currentUsage);
+  };
 
   return (
     <>
@@ -30,25 +50,37 @@ export const Header: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              {user && !userPlan.loading && (
-                <div className="flex items-center space-x-3">
-                  <PlanBadge plan={userPlan.plan} />
-                  {!userPlan.features.unlimitedSummaries && (
-                    <div className="bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
-                      <span className="text-sm text-blue-100">
-                        {userPlan.getRemainingAnalyses()} left today
-                      </span>
+              {/* Usage Display */}
+              {!usageLoading && (
+                <>
+                  {user && !userPlan.loading && (
+                    <div className="flex items-center space-x-3">
+                      <PlanBadge plan={userPlan.plan} />
                     </div>
                   )}
-                </div>
-              )}
-              
-              {!user && freeUsesRemaining > 0 && (
-                <div className="bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
-                  <span className="text-sm text-blue-100">
-                    {freeUsesRemaining} free {freeUsesRemaining === 1 ? 'use' : 'uses'} left
-                  </span>
-                </div>
+                  
+                  {usageData.planType === 'free' && (
+                    <div className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        {usageData.canPerformAction ? (
+                          <Zap className="w-4 h-4 text-green-300" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-orange-300" />
+                        )}
+                        <div className="text-sm">
+                          <div className="font-semibold">
+                            {getRemainingUses()} {getRemainingUses() === 1 ? 'use' : 'uses'} today
+                          </div>
+                          {!usageData.canPerformAction && (
+                            <div className="text-xs text-blue-200">
+                              Resets in {getTimeUntilReset()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
               
               {!loading && (
@@ -74,7 +106,7 @@ export const Header: React.FC = () => {
           {!user && (
             <div className="text-center mt-4">
               <p className="text-blue-200 text-sm">
-                ✨ Try 5 videos for free, no signup required • Advanced features with free account
+                ✨ 5 free analyses daily • Advanced features with Pro account
               </p>
             </div>
           )}

@@ -12,10 +12,11 @@ import { AuthGuard } from './components/AuthGuard';
 import { ApiKeyManagement } from './components/ApiKeyManagement';
 import { PricingPlans } from './components/PricingPlans';
 import { FeatureRestrictionModal } from './components/FeatureRestrictionModal';
+import { UsageLimitModal } from './components/UsageLimitModal';
 import { analyzeVideo, saveVideoSummary, updateVideoHighlights, translateAndSaveVideoSummary } from './services/videoService';
 import { VideoSummary, HighlightedSegment } from './types';
 import { useAuth } from './hooks/useAuth';
-import { useFreeTrial } from './hooks/useFreeTrial';
+import { useUsageTracking } from './hooks/useUsageTracking';
 import { useUserPlan } from './hooks/useUserPlan';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
   const [currentView, setCurrentView] = useState<'analyze' | 'dashboard' | 'api' | 'pricing'>('analyze');
   const [isTranslating, setIsTranslating] = useState(false);
   const [currentVideoId, setCurrentVideoId] = useState<string | null>(null);
+  const [showUsageLimitModal, setShowUsageLimitModal] = useState(false);
   const [restrictionModal, setRestrictionModal] = useState<{
     isOpen: boolean;
     feature: string;
@@ -38,7 +40,7 @@ function App() {
   });
 
   const { user } = useAuth();
-  const { freeUsesRemaining, hasExceededLimit, consumeFreeTrial } = useFreeTrial();
+  const { usageData, loading: usageLoading, incrementUsage, getRemainingUses, refreshUsage } = useUsageTracking(user);
   const userPlan = useUserPlan(user);
 
   // Clear video data when switching views
@@ -74,14 +76,9 @@ function App() {
       return;
     }
 
-    // Check if user can analyze video
-    if (!user && hasExceededLimit) {
-      setError('Free trial expired. Please sign up to continue using Transcripto.');
-      return;
-    }
-
-    if (user && !userPlan.canAnalyzeVideo()) {
-      setError(`Daily limit reached. You've used ${userPlan.dailyUsage}/${userPlan.dailyLimit} analyses today.`);
+    // Check if user can analyze video (daily limit)
+    if (!usageData.canPerformAction) {
+      setShowUsageLimitModal(true);
       return;
     }
 
@@ -99,13 +96,12 @@ function App() {
         setCurrentVideoId(response.data.videoId);
         setVideoData(response.data);
         
-        // Consume free trial if user is not authenticated
-        if (!user) {
-          consumeFreeTrial();
-        } else {
-          // Refresh usage for authenticated users
-          userPlan.refreshUsage();
-        }
+        // Increment usage count
+        await incrementUsage('video_analysis', {
+          video_id: response.data.videoId,
+          video_title: response.data.title,
+          channel_name: response.data.channelName
+        });
         
         // Save to database if user is logged in
         if (user) {
@@ -213,8 +209,8 @@ function App() {
     ] : [])
   ];
 
-  const canAnalyze = user ? userPlan.canAnalyzeVideo() : freeUsesRemaining > 0;
-  const remainingAnalyses = user ? userPlan.getRemainingAnalyses() : freeUsesRemaining;
+  const remainingUses = getRemainingUses();
+  const canAnalyze = usageData.canPerformAction;
 
   return (
     <AuthGuard>
@@ -260,7 +256,8 @@ function App() {
                 onSubmit={handleVideoSubmit} 
                 isLoading={isLoading}
                 canAnalyze={canAnalyze}
-                freeUsesRemaining={remainingAnalyses}
+                remainingUses={remainingUses}
+                usageData={usageData}
               />
               
               {error && <ErrorMessage message={error} onRetry={handleRetry} />}
@@ -352,6 +349,16 @@ function App() {
           feature={restrictionModal.feature}
           requiredPlan={restrictionModal.requiredPlan}
           description={restrictionModal.description}
+        />
+
+        <UsageLimitModal
+          isOpen={showUsageLimitModal}
+          onClose={() => setShowUsageLimitModal(false)}
+          usageData={usageData}
+          onUpgrade={() => {
+            setShowUsageLimitModal(false);
+            setCurrentView('pricing');
+          }}
         />
       </div>
     </AuthGuard>

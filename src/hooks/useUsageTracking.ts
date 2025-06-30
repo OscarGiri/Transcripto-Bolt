@@ -5,9 +5,9 @@ import { supabase } from '../lib/supabase';
 interface UsageData {
   currentUsage: number;
   dailyLimit: number;
-  monthlyLimit: number;
   canPerformAction: boolean;
   planType: 'free' | 'pro' | 'team';
+  resetsAt: string; // When the daily limit resets
 }
 
 interface UsageTrackingHook {
@@ -17,6 +17,7 @@ interface UsageTrackingHook {
   incrementUsage: (actionType?: string, metadata?: any) => Promise<boolean>;
   getVisitorId: () => string;
   refreshUsage: () => void;
+  getRemainingUses: () => number;
 }
 
 const VISITOR_ID_KEY = 'transcripto_visitor_id';
@@ -26,9 +27,9 @@ export const useUsageTracking = (user: User | null): UsageTrackingHook => {
   const [usageData, setUsageData] = useState<UsageData>({
     currentUsage: 0,
     dailyLimit: FREE_DAILY_LIMIT,
-    monthlyLimit: 50,
     canPerformAction: true,
-    planType: 'free'
+    planType: 'free',
+    resetsAt: getNextMidnight()
   });
   const [loading, setLoading] = useState(true);
 
@@ -41,6 +42,14 @@ export const useUsageTracking = (user: User | null): UsageTrackingHook => {
     }
     return visitorId;
   }, []);
+
+  // Get next midnight for reset time
+  function getNextMidnight(): string {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    return tomorrow.toISOString();
+  }
 
   // Check current usage limits
   const checkUsage = useCallback(async (actionType: string = 'video_analysis'): Promise<UsageData> => {
@@ -57,7 +66,7 @@ export const useUsageTracking = (user: User | null): UsageTrackingHook => {
       const result = data[0] || {
         current_usage: 0,
         daily_limit: FREE_DAILY_LIMIT,
-        monthly_limit: 50,
+        monthly_limit: 150, // Not used for daily limits
         can_perform_action: true,
         plan_type: 'free'
       };
@@ -65,9 +74,9 @@ export const useUsageTracking = (user: User | null): UsageTrackingHook => {
       const usageInfo: UsageData = {
         currentUsage: result.current_usage,
         dailyLimit: result.daily_limit,
-        monthlyLimit: result.monthly_limit,
         canPerformAction: result.can_perform_action,
-        planType: result.plan_type as 'free' | 'pro' | 'team'
+        planType: result.plan_type as 'free' | 'pro' | 'team',
+        resetsAt: getNextMidnight()
       };
 
       setUsageData(usageInfo);
@@ -78,9 +87,9 @@ export const useUsageTracking = (user: User | null): UsageTrackingHook => {
       const defaultUsage: UsageData = {
         currentUsage: FREE_DAILY_LIMIT,
         dailyLimit: FREE_DAILY_LIMIT,
-        monthlyLimit: 50,
         canPerformAction: false,
-        planType: 'free'
+        planType: 'free',
+        resetsAt: getNextMidnight()
       };
       setUsageData(defaultUsage);
       return defaultUsage;
@@ -113,6 +122,14 @@ export const useUsageTracking = (user: User | null): UsageTrackingHook => {
     }
   }, [user, getVisitorId, checkUsage]);
 
+  // Get remaining uses for the day
+  const getRemainingUses = useCallback((): number => {
+    if (usageData.planType !== 'free') {
+      return 999; // Unlimited for paid plans
+    }
+    return Math.max(0, usageData.dailyLimit - usageData.currentUsage);
+  }, [usageData]);
+
   // Refresh usage data
   const refreshUsage = useCallback(() => {
     checkUsage();
@@ -129,12 +146,32 @@ export const useUsageTracking = (user: User | null): UsageTrackingHook => {
     loadUsage();
   }, [user, checkUsage]);
 
+  // Auto-refresh at midnight to reset daily limits
+  useEffect(() => {
+    const now = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+    
+    const timeout = setTimeout(() => {
+      refreshUsage();
+      // Set up daily refresh
+      const dailyInterval = setInterval(refreshUsage, 24 * 60 * 60 * 1000);
+      return () => clearInterval(dailyInterval);
+    }, msUntilMidnight);
+
+    return () => clearTimeout(timeout);
+  }, [refreshUsage]);
+
   return {
     usageData,
     loading,
     checkUsage,
     incrementUsage,
     getVisitorId,
-    refreshUsage
+    refreshUsage,
+    getRemainingUses
   };
 };

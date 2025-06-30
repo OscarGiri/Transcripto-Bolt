@@ -64,3 +64,11 @@ export interface TranslationResponse {
   sourceLanguage: string;
   targetLanguage: string;
 }
+
+export interface UsageData {
+  currentUsage: number;
+  dailyLimit: number;
+  canPerformAction: boolean;
+  planType: 'free' | 'pro' | 'team';
+  resetsAt: string;
+}

@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { Search, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
+import { Search, AlertCircle, CheckCircle2, Lock, Clock, Zap } from 'lucide-react';
+import { UsageData } from '../hooks/useUsageTracking';
 
 interface URLInputProps {
   onSubmit: (url: string) => void;
   isLoading: boolean;
   canAnalyze: boolean;
-  freeUsesRemaining: number | null;
+  remainingUses: number;
+  usageData: UsageData;
 }
 
 export const URLInput: React.FC<URLInputProps> = ({ 
   onSubmit, 
   isLoading, 
   canAnalyze,
-  freeUsesRemaining 
+  remainingUses,
+  usageData
 }) => {
   const [url, setUrl] = useState('');
   const [isValid, setIsValid] = useState<boolean | null>(null);
@@ -40,8 +43,73 @@ export const URLInput: React.FC<URLInputProps> = ({
     }
   };
 
+  const getTimeUntilReset = () => {
+    const now = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
+    const msUntilReset = tomorrow.getTime() - now.getTime();
+    const hoursUntilReset = Math.floor(msUntilReset / (1000 * 60 * 60));
+    const minutesUntilReset = Math.floor((msUntilReset % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hoursUntilReset > 0) {
+      return `${hoursUntilReset}h ${minutesUntilReset}m`;
+    }
+    return `${minutesUntilReset}m`;
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
+      {/* Usage Status Banner */}
+      {usageData.planType === 'free' && (
+        <div className="mb-6">
+          {canAnalyze ? (
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-green-100 p-2 rounded-lg">
+                    <Zap className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-green-900">
+                      {remainingUses} Free {remainingUses === 1 ? 'Analysis' : 'Analyses'} Today
+                    </h3>
+                    <p className="text-green-700 text-sm">
+                      Resets in {getTimeUntilReset()} • Upgrade for unlimited access
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-green-600">{remainingUses}</div>
+                  <div className="text-xs text-green-600">remaining</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-orange-100 p-2 rounded-lg">
+                    <Clock className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-orange-900">Daily Limit Reached</h3>
+                    <p className="text-orange-700 text-sm">
+                      Resets in {getTimeUntilReset()} • Upgrade for unlimited access
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-orange-600">0</div>
+                  <div className="text-xs text-orange-600">remaining</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative">
           <input
@@ -80,16 +148,10 @@ export const URLInput: React.FC<URLInputProps> = ({
           </p>
         )}
 
-        {!canAnalyze && (
+        {!canAnalyze && usageData.planType === 'free' && (
           <p className="text-orange-600 text-sm flex items-center space-x-2">
-            <Lock className="w-4 h-4" />
-            <span>Free trial expired. Please sign up to continue.</span>
-          </p>
-        )}
-
-        {freeUsesRemaining !== null && freeUsesRemaining > 0 && (
-          <p className="text-blue-600 text-sm text-center">
-            {freeUsesRemaining} free {freeUsesRemaining === 1 ? 'analysis' : 'analyses'} remaining
+            <Clock className="w-4 h-4" />
+            <span>Daily limit reached. Resets in {getTimeUntilReset()} or upgrade for unlimited access.</span>
           </p>
         )}
         
@@ -108,12 +170,40 @@ export const URLInput: React.FC<URLInputProps> = ({
               <span>Analyzing Video...</span>
             </div>
           ) : !canAnalyze ? (
-            'Sign Up to Continue'
+            usageData.planType === 'free' ? 'Daily Limit Reached' : 'Upgrade Required'
           ) : (
-            'Summarize Video'
+            'Analyze Video'
           )}
         </button>
       </form>
+
+      {/* Pro Features Teaser */}
+      {usageData.planType === 'free' && (
+        <div className="mt-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl">
+          <h3 className="font-semibold text-gray-900 mb-3">🚀 Unlock More with Pro</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <span>Unlimited daily analyses</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <span>Advanced AI insights</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <span>PDF & DOCX exports</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <span>Multi-language translation</span>
+            </div>
+          </div>
+          <div className="mt-4 text-center">
+            <span className="text-blue-600 font-semibold">Starting at $19/month</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
