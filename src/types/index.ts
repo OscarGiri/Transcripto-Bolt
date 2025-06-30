@@ -7,6 +7,11 @@ export interface VideoSummary {
   summary: string;
   bulletPoints: string[];
   keyQuote: string;
+  memorableQuotes?: {
+    best: string;
+    viral: string;
+    powerful: string;
+  };
   transcript: TranscriptSegment[];
   videoId: string;
   createdAt?: string;

@@ -290,6 +290,7 @@ function App() {
                         summary={videoData.summary}
                         bulletPoints={videoData.bulletPoints}
                         keyQuote={videoData.keyQuote}
+                        memorableQuotes={videoData.memorableQuotes}
                         title={videoData.title}
                         enhancedAI={userPlan.features.enhancedAI}
                       />

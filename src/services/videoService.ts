@@ -158,6 +158,11 @@ const KNOWN_VIDEOS: { [videoId: string]: Partial<VideoSummary> } = {
       'Scientific management principles apply universally across industries and can transform any organization\'s effectiveness'
     ],
     keyQuote: 'The principal object of management should be to secure the maximum prosperity for the employer, coupled with the maximum prosperity for each employee.',
+    memorableQuotes: {
+      best: 'The principal object of management should be to secure the maximum prosperity for the employer, coupled with the maximum prosperity for each employee.',
+      viral: 'In the past the man has been first; in the future the system must be first.',
+      powerful: 'The most important object of both the workmen and the management should be the training and development of each individual in the establishment, so that he can do the highest class of work for which his natural abilities fit him.'
+    },
     language: 'en'
   },
   // Add more known videos here as needed
@@ -336,6 +341,7 @@ const generateVideoContent = (videoId: string, metadata: any): VideoSummary => {
       summary: knownVideo.summary!,
       bulletPoints: knownVideo.bulletPoints!,
       keyQuote: knownVideo.keyQuote!,
+      memorableQuotes: knownVideo.memorableQuotes,
       transcript: generateSpecificTranscript(videoId, metadata.duration, knownVideo),
       highlightedSegments: []
     };
@@ -365,6 +371,7 @@ const generateVideoContent = (videoId: string, metadata: any): VideoSummary => {
   const summary = generateSummary(metadata.title, contentDepth, hash);
   const bulletPoints = generateBulletPoints(contentDepth, hash);
   const keyQuote = generateKeyQuote(contentDepth, hash);
+  const memorableQuotes = generateMemorableQuotes(contentDepth, hash);
   const transcript = generateTranscript(metadata.title, totalMinutes, hash);
   
   return {
@@ -377,6 +384,7 @@ const generateVideoContent = (videoId: string, metadata: any): VideoSummary => {
     summary,
     bulletPoints,
     keyQuote,
+    memorableQuotes,
     transcript,
     highlightedSegments: generateHighlights(transcript, hash)
   };
@@ -683,6 +691,85 @@ const generateKeyQuote = (depth: string, hash: number): string => {
   
   const depthQuotes = quotes[depth as keyof typeof quotes] || quotes.basic;
   return depthQuotes[hash % depthQuotes.length];
+};
+
+const generateMemorableQuotes = (depth: string, hash: number): { best: string; viral: string; powerful: string } => {
+  const quoteCategories = {
+    best: {
+      basic: [
+        'The foundation of success is built on understanding the basics and executing them flawlessly.',
+        'Clarity of purpose transforms ordinary efforts into extraordinary achievements.',
+        'The most profound insights often come from the simplest observations.',
+      ],
+      intermediate: [
+        'Excellence emerges when preparation meets opportunity in the arena of focused action.',
+        'The bridge between knowledge and wisdom is built through deliberate practice and reflection.',
+        'True mastery reveals itself not in complexity, but in the elegant simplicity of expert execution.',
+      ],
+      advanced: [
+        'Innovation is not about creating something new, but about seeing familiar things in revolutionary ways.',
+        'The highest form of intelligence is the ability to adapt principles to ever-changing circumstances.',
+        'Expertise is the art of making the complex appear simple through deep understanding.',
+      ],
+      comprehensive: [
+        'Transformational leadership requires the courage to challenge assumptions while honoring timeless principles.',
+        'The most sustainable solutions emerge from the intersection of human insight and systematic thinking.',
+        'True wisdom lies in knowing not just what to do, but when to do it and why it matters.',
+      ]
+    },
+    viral: {
+      basic: [
+        'Stop overthinking and start doing - action beats perfection every time.',
+        'The secret to getting ahead is getting started, even when you don\'t feel ready.',
+        'Your biggest competitor is who you were yesterday.',
+      ],
+      intermediate: [
+        'Success isn\'t about having all the answers - it\'s about asking better questions.',
+        'The gap between where you are and where you want to be is called action.',
+        'Don\'t wait for opportunity to knock - build a door and open it yourself.',
+      ],
+      advanced: [
+        'The future belongs to those who can adapt faster than the rate of change.',
+        'Innovation happens when you stop asking "what if" and start asking "why not".',
+        'Your comfort zone is a beautiful place, but nothing ever grows there.',
+      ],
+      comprehensive: [
+        'The most dangerous phrase in any organization is "we\'ve always done it this way".',
+        'Disruption is not about technology - it\'s about reimagining what\'s possible.',
+        'The only way to make sense of change is to plunge into it, move with it, and join the dance.',
+      ]
+    },
+    powerful: {
+      basic: [
+        'Every expert was once a beginner who refused to give up.',
+        'The only impossible journey is the one you never begin.',
+        'Your potential is not determined by your past, but by your commitment to growth.',
+      ],
+      intermediate: [
+        'Greatness is not about being better than others - it\'s about being better than you used to be.',
+        'The most powerful force in the universe is a human being living in alignment with their purpose.',
+        'Success is not final, failure is not fatal - it is the courage to continue that counts.',
+      ],
+      advanced: [
+        'The ultimate measure of a person is not where they stand in moments of comfort, but where they stand in times of challenge.',
+        'Leadership is not about being in charge - it\'s about taking care of those in your charge.',
+        'The greatest revolution of our generation is the discovery that human beings can alter their lives by altering their attitudes.',
+      ],
+      comprehensive: [
+        'The price of greatness is responsibility - to yourself, to your team, and to the future you\'re creating.',
+        'True power is not in controlling others, but in empowering them to become the best versions of themselves.',
+        'The legacy you leave is not what you accomplish, but what you inspire others to accomplish after you\'re gone.',
+      ]
+    }
+  };
+
+  const depthLevel = depth as keyof typeof quoteCategories.best;
+  
+  return {
+    best: quoteCategories.best[depthLevel]?.[hash % quoteCategories.best[depthLevel].length] || quoteCategories.best.basic[0],
+    viral: quoteCategories.viral[depthLevel]?.[(hash + 1) % quoteCategories.viral[depthLevel].length] || quoteCategories.viral.basic[0],
+    powerful: quoteCategories.powerful[depthLevel]?.[(hash + 2) % quoteCategories.powerful[depthLevel].length] || quoteCategories.powerful.basic[0],
+  };
 };
 
 const generateTranscript = (title: string, durationMinutes: number, hash: number): any[] => {

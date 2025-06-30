@@ -1,10 +1,15 @@
-import React from 'react';
-import { FileText, List, Quote, Download, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, List, Quote, Download, Sparkles, Star, Zap, Heart, Copy, Check } from 'lucide-react';
 
 interface SummaryProps {
   summary: string;
   bulletPoints: string[];
   keyQuote: string;
+  memorableQuotes?: {
+    best: string;
+    viral: string;
+    powerful: string;
+  };
   title: string;
   enhancedAI?: boolean;
 }
@@ -13,14 +18,24 @@ export const Summary: React.FC<SummaryProps> = ({
   summary,
   bulletPoints,
   keyQuote,
+  memorableQuotes,
   title,
   enhancedAI = false,
 }) => {
+  const [copiedQuote, setCopiedQuote] = useState<string | null>(null);
+
   const downloadSummary = () => {
-    const content = `${title}\n\n` +
+    let content = `${title}\n\n` +
       `SUMMARY:\n${summary}\n\n` +
       `KEY POINTS:\n${bulletPoints.map(point => `• ${point}`).join('\n')}\n\n` +
       `KEY QUOTE:\n"${keyQuote}"`;
+
+    if (memorableQuotes) {
+      content += `\n\nMEMORABLE QUOTES:\n\n` +
+        `BEST QUOTE:\n"${memorableQuotes.best}"\n\n` +
+        `VIRAL QUOTE:\n"${memorableQuotes.viral}"\n\n` +
+        `POWERFUL QUOTE:\n"${memorableQuotes.powerful}"`;
+    }
     
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -31,6 +46,16 @@ export const Summary: React.FC<SummaryProps> = ({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const copyQuote = async (quote: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(`"${quote}"`);
+      setCopiedQuote(type);
+      setTimeout(() => setCopiedQuote(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy quote: ', err);
+    }
   };
 
   return (
@@ -80,22 +105,111 @@ export const Summary: React.FC<SummaryProps> = ({
         </ul>
       </div>
 
-      {/* Key Quote Section */}
-      <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
-        <div className="flex items-center space-x-2 mb-4">
-          <Quote className="w-5 h-5 text-purple-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Memorable Quote</h3>
-          {enhancedAI && (
-            <div className="flex items-center space-x-1 bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
-              <Sparkles className="w-3 h-3" />
-              <span>AI Selected</span>
+      {/* Enhanced Quotes Section */}
+      {memorableQuotes ? (
+        <div className="space-y-4">
+          {/* Best Quote */}
+          <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-6 border border-yellow-100">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Star className="w-5 h-5 text-yellow-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Best Quote</h3>
+                <div className="flex items-center space-x-1 bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">
+                  <Star className="w-3 h-3" />
+                  <span>Most Insightful</span>
+                </div>
+              </div>
+              <button
+                onClick={() => copyQuote(memorableQuotes.best, 'best')}
+                className="p-2 hover:bg-yellow-100 rounded-lg transition-colors"
+                title="Copy quote"
+              >
+                {copiedQuote === 'best' ? (
+                  <Check className="w-4 h-4 text-green-600" />
+                ) : (
+                  <Copy className="w-4 h-4 text-yellow-600" />
+                )}
+              </button>
             </div>
-          )}
+            <blockquote className="text-gray-700 italic text-lg leading-relaxed">
+              "{memorableQuotes.best}"
+            </blockquote>
+          </div>
+
+          {/* Viral Quote */}
+          <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-6 border border-pink-100">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Zap className="w-5 h-5 text-pink-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Viral Quote</h3>
+                <div className="flex items-center space-x-1 bg-pink-100 text-pink-700 px-2 py-1 rounded-full text-xs">
+                  <Zap className="w-3 h-3" />
+                  <span>Most Shareable</span>
+                </div>
+              </div>
+              <button
+                onClick={() => copyQuote(memorableQuotes.viral, 'viral')}
+                className="p-2 hover:bg-pink-100 rounded-lg transition-colors"
+                title="Copy quote"
+              >
+                {copiedQuote === 'viral' ? (
+                  <Check className="w-4 h-4 text-green-600" />
+                ) : (
+                  <Copy className="w-4 h-4 text-pink-600" />
+                )}
+              </button>
+            </div>
+            <blockquote className="text-gray-700 italic text-lg leading-relaxed">
+              "{memorableQuotes.viral}"
+            </blockquote>
+          </div>
+
+          {/* Powerful Quote */}
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Heart className="w-5 h-5 text-purple-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Powerful Quote</h3>
+                <div className="flex items-center space-x-1 bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+                  <Heart className="w-3 h-3" />
+                  <span>Most Impactful</span>
+                </div>
+              </div>
+              <button
+                onClick={() => copyQuote(memorableQuotes.powerful, 'powerful')}
+                className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
+                title="Copy quote"
+              >
+                {copiedQuote === 'powerful' ? (
+                  <Check className="w-4 h-4 text-green-600" />
+                ) : (
+                  <Copy className="w-4 h-4 text-purple-600" />
+                )}
+              </button>
+            </div>
+            <blockquote className="text-gray-700 italic text-lg leading-relaxed">
+              "{memorableQuotes.powerful}"
+            </blockquote>
+          </div>
         </div>
-        <blockquote className="text-gray-700 italic text-lg leading-relaxed">
-          "{keyQuote}"
-        </blockquote>
-      </div>
+      ) : (
+        /* Fallback to single quote */
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+          <div className="flex items-center space-x-2 mb-4">
+            <Quote className="w-5 h-5 text-purple-600" />
+            <h3 className="text-lg font-semibold text-gray-900">Memorable Quote</h3>
+            {enhancedAI && (
+              <div className="flex items-center space-x-1 bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+                <Sparkles className="w-3 h-3" />
+                <span>AI Selected</span>
+              </div>
+            )}
+          </div>
+          <blockquote className="text-gray-700 italic text-lg leading-relaxed">
+            "{keyQuote}"
+          </blockquote>
+        </div>
+      )}
 
       {/* Download Button */}
       <div className="flex justify-center pt-4">
