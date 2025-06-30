@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, Lock } from 'lucide-react';
 import { TranscriptSegment, HighlightedSegment } from '../types';
 import { TranscriptSearch } from './TranscriptSearch';
 import { HighlightedTranscript } from './HighlightedTranscript';
@@ -9,6 +9,8 @@ interface EnhancedTranscriptProps {
   title: string;
   highlightedSegments: HighlightedSegment[];
   onUpdateHighlights: (highlights: HighlightedSegment[]) => void;
+  searchEnabled?: boolean;
+  onSearchRestriction?: () => void;
 }
 
 export const EnhancedTranscript: React.FC<EnhancedTranscriptProps> = ({
@@ -16,6 +18,8 @@ export const EnhancedTranscript: React.FC<EnhancedTranscriptProps> = ({
   title,
   highlightedSegments,
   onUpdateHighlights,
+  searchEnabled = false,
+  onSearchRestriction,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [searchHighlightIndex, setSearchHighlightIndex] = useState<number | undefined>();
@@ -36,16 +40,40 @@ export const EnhancedTranscript: React.FC<EnhancedTranscriptProps> = ({
   };
 
   const handleSearchHighlight = (segmentIndex: number) => {
+    if (!searchEnabled && onSearchRestriction) {
+      onSearchRestriction();
+      return;
+    }
     setSearchHighlightIndex(segmentIndex);
     setIsExpanded(true);
   };
 
   return (
     <div className="space-y-4">
-      <TranscriptSearch
-        transcript={transcript}
-        onHighlight={handleSearchHighlight}
-      />
+      {searchEnabled ? (
+        <TranscriptSearch
+          transcript={transcript}
+          onHighlight={handleSearchHighlight}
+        />
+      ) : (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Lock className="w-5 h-5 text-gray-400" />
+              <span className="text-gray-600">Transcript Search</span>
+            </div>
+            <button
+              onClick={onSearchRestriction}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              Upgrade to Pro
+            </button>
+          </div>
+          <p className="text-gray-500 text-sm mt-2">
+            Search through video transcripts to quickly find specific topics and moments.
+          </p>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-lg border border-gray-200">
         <div className="p-6 border-b border-gray-200">

@@ -1,11 +1,12 @@
 import React from 'react';
-import { FileText, List, Quote, Download } from 'lucide-react';
+import { FileText, List, Quote, Download, Sparkles } from 'lucide-react';
 
 interface SummaryProps {
   summary: string;
   bulletPoints: string[];
   keyQuote: string;
   title: string;
+  enhancedAI?: boolean;
 }
 
 export const Summary: React.FC<SummaryProps> = ({
@@ -13,6 +14,7 @@ export const Summary: React.FC<SummaryProps> = ({
   bulletPoints,
   keyQuote,
   title,
+  enhancedAI = false,
 }) => {
   const downloadSummary = () => {
     const content = `${title}\n\n` +
@@ -38,8 +40,22 @@ export const Summary: React.FC<SummaryProps> = ({
         <div className="flex items-center space-x-2 mb-4">
           <FileText className="w-5 h-5 text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-900">Summary</h3>
+          {enhancedAI && (
+            <div className="flex items-center space-x-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">
+              <Sparkles className="w-3 h-3" />
+              <span>Enhanced AI</span>
+            </div>
+          )}
         </div>
         <p className="text-gray-700 leading-relaxed">{summary}</p>
+        {enhancedAI && (
+          <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+            <p className="text-blue-800 text-sm">
+              <strong>AI Enhancement:</strong> This summary includes deeper context analysis, 
+              sentiment insights, and improved readability powered by advanced AI models.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Bullet Points Section */}
@@ -47,6 +63,12 @@ export const Summary: React.FC<SummaryProps> = ({
         <div className="flex items-center space-x-2 mb-4">
           <List className="w-5 h-5 text-green-600" />
           <h3 className="text-lg font-semibold text-gray-900">Key Learning Points</h3>
+          {enhancedAI && (
+            <div className="flex items-center space-x-1 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">
+              <Sparkles className="w-3 h-3" />
+              <span>AI Curated</span>
+            </div>
+          )}
         </div>
         <ul className="space-y-3">
           {bulletPoints.map((point, index) => (
@@ -63,6 +85,12 @@ export const Summary: React.FC<SummaryProps> = ({
         <div className="flex items-center space-x-2 mb-4">
           <Quote className="w-5 h-5 text-purple-600" />
           <h3 className="text-lg font-semibold text-gray-900">Memorable Quote</h3>
+          {enhancedAI && (
+            <div className="flex items-center space-x-1 bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+              <Sparkles className="w-3 h-3" />
+              <span>AI Selected</span>
+            </div>
+          )}
         </div>
         <blockquote className="text-gray-700 italic text-lg leading-relaxed">
           "{keyQuote}"

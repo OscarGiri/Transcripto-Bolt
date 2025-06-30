@@ -11,10 +11,12 @@ import { ExportPanel } from './components/ExportPanel';
 import { AuthGuard } from './components/AuthGuard';
 import { ApiKeyManagement } from './components/ApiKeyManagement';
 import { PricingPlans } from './components/PricingPlans';
+import { FeatureRestrictionModal } from './components/FeatureRestrictionModal';
 import { analyzeVideo, saveVideoSummary, updateVideoHighlights, translateAndSaveVideoSummary } from './services/videoService';
 import { VideoSummary, HighlightedSegment } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useFreeTrial } from './hooks/useFreeTrial';
+import { useUserPlan } from './hooks/useUserPlan';
 
 function App() {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,13 +24,40 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'analyze' | 'dashboard' | 'api' | 'pricing'>('analyze');
   const [isTranslating, setIsTranslating] = useState(false);
+  const [restrictionModal, setRestrictionModal] = useState<{
+    isOpen: boolean;
+    feature: string;
+    requiredPlan: 'pro' | 'team';
+    description: string;
+  }>({
+    isOpen: false,
+    feature: '',
+    requiredPlan: 'pro',
+    description: '',
+  });
+
   const { user } = useAuth();
   const { freeUsesRemaining, hasExceededLimit, consumeFreeTrial } = useFreeTrial();
+  const userPlan = useUserPlan(user);
+
+  const showFeatureRestriction = (feature: string, requiredPlan: 'pro' | 'team', description: string) => {
+    setRestrictionModal({
+      isOpen: true,
+      feature,
+      requiredPlan,
+      description,
+    });
+  };
 
   const handleVideoSubmit = async (url: string) => {
     // Check if user can analyze video
     if (!user && hasExceededLimit) {
       setError('Free trial expired. Please sign up to continue using Transcripto.');
+      return;
+    }
+
+    if (user && !userPlan.canAnalyzeVideo()) {
+      setError(`Daily limit reached. You've used ${userPlan.dailyUsage}/${userPlan.dailyLimit} analyses today.`);
       return;
     }
 
@@ -45,6 +74,9 @@ function App() {
         // Consume free trial if user is not authenticated
         if (!user) {
           consumeFreeTrial();
+        } else {
+          // Refresh usage for authenticated users
+          userPlan.refreshUsage();
         }
         
         // Save to database if user is logged in
@@ -78,6 +110,15 @@ function App() {
   const handleUpdateHighlights = async (highlights: HighlightedSegment[]) => {
     if (!videoData || !user) return;
 
+    if (!userPlan.features.autoHighlight) {
+      showFeatureRestriction(
+        'Advanced Highlighting',
+        'pro',
+        'Save and manage highlighted segments with AI-powered insights and custom notes.'
+      );
+      return;
+    }
+
     // Update local state immediately
     setVideoData(prev => prev ? { ...prev, highlightedSegments: highlights } : null);
 
@@ -90,6 +131,15 @@ function App() {
 
   const handleTranslate = async (targetLanguage: string) => {
     if (!videoData || !user) return;
+
+    if (!userPlan.features.translation) {
+      showFeatureRestriction(
+        'Multi-language Translation',
+        'pro',
+        'Translate summaries and transcripts into 12+ languages with AI-powered accuracy.'
+      );
+      return;
+    }
 
     setIsTranslating(true);
     try {
@@ -111,6 +161,18 @@ function App() {
     }
   };
 
+  const handleExportRestriction = (format: 'pdf' | 'docx') => {
+    if (!userPlan.features.pdfDocxExport) {
+      showFeatureRestriction(
+        'Advanced Export Formats',
+        'pro',
+        `Export your summaries as formatted ${format.toUpperCase()} documents with professional styling and layouts.`
+      );
+      return false;
+    }
+    return true;
+  };
+
   const navigationItems = [
     { id: 'analyze', label: 'Analyze Video' },
     ...(user ? [
@@ -119,6 +181,9 @@ function App() {
       { id: 'pricing', label: 'Pricing' },
     ] : [])
   ];
+
+  const canAnalyze = user ? userPlan.canAnalyzeVideo() : freeUsesRemaining > 0;
+  const remainingAnalyses = user ? userPlan.getRemainingAnalyses() : freeUsesRemaining;
 
   return (
     <AuthGuard>
@@ -154,7 +219,7 @@ function App() {
             <ApiKeyManagement />
           )}
 
-          {currentView === 'pricing' && user && (
+          {currentView === 'pricing' && (
             <PricingPlans />
           )}
 
@@ -163,8 +228,8 @@ function App() {
               <URLInput 
                 onSubmit={handleVideoSubmit} 
                 isLoading={isLoading}
-                canAnalyze={user || freeUsesRemaining > 0}
-                freeUsesRemaining={user ? null : freeUsesRemaining}
+                canAnalyze={canAnalyze}
+                freeUsesRemaining={remainingAnalyses}
               />
               
               {error && <ErrorMessage message={error} onRetry={handleRetry} />}
@@ -185,6 +250,7 @@ function App() {
                         bulletPoints={videoData.bulletPoints}
                         keyQuote={videoData.keyQuote}
                         title={videoData.title}
+                        enhancedAI={userPlan.features.enhancedAI}
                       />
                       
                       <EnhancedTranscript
@@ -192,6 +258,12 @@ function App() {
                         title={videoData.title}
                         highlightedSegments={videoData.highlightedSegments || []}
                         onUpdateHighlights={handleUpdateHighlights}
+                        searchEnabled={userPlan.features.transcriptSearch}
+                        onSearchRestriction={() => showFeatureRestriction(
+                          'Transcript Search',
+                          'pro',
+                          'Search through video transcripts to quickly find specific topics, keywords, or moments.'
+                        )}
                       />
                     </div>
                     
@@ -203,12 +275,15 @@ function App() {
                           onTranslate={handleTranslate}
                           translatedContent={videoData.translatedSummary}
                           isTranslating={isTranslating}
+                          enabled={userPlan.features.translation}
                         />
                       )}
                       
                       <ExportPanel
                         videoData={videoData}
                         highlightedSegments={videoData.highlightedSegments}
+                        onExportRestriction={handleExportRestriction}
+                        pdfDocxEnabled={userPlan.features.pdfDocxExport}
                       />
                     </div>
                   </div>
@@ -228,6 +303,14 @@ function App() {
             </p>
           </div>
         </footer>
+
+        <FeatureRestrictionModal
+          isOpen={restrictionModal.isOpen}
+          onClose={() => setRestrictionModal(prev => ({ ...prev, isOpen: false }))}
+          feature={restrictionModal.feature}
+          requiredPlan={restrictionModal.requiredPlan}
+          description={restrictionModal.description}
+        />
       </div>
     </AuthGuard>
   );

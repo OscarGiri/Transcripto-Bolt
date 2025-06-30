@@ -3,6 +3,9 @@ import { BarChart3, Clock, Star, TrendingUp, Search, Filter } from 'lucide-react
 import { VideoSummary } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useUserPlan } from '../hooks/useUserPlan';
+import { PlanBadge } from './PlanBadge';
+import { UsageMeter } from './UsageMeter';
 
 interface DashboardProps {
   onSelectVideo: (video: VideoSummary) => void;
@@ -14,6 +17,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'title' | 'duration'>('recent');
   const { user } = useAuth();
+  const userPlan = useUserPlan(user);
 
   useEffect(() => {
     if (user) {
@@ -102,7 +106,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
     return `${minutes}m`;
   };
 
-  if (loading) {
+  if (loading || userPlan.loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -112,6 +116,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 space-y-6">
+      {/* Plan and Usage Overview */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
+            <PlanBadge plan={userPlan.plan} />
+          </div>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            Upgrade Plan
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <UsageMeter
+            current={userPlan.dailyUsage}
+            limit={userPlan.features.unlimitedSummaries ? null : userPlan.dailyLimit}
+            label="Daily Usage"
+            period="day"
+          />
+          <UsageMeter
+            current={userPlan.monthlyUsage}
+            limit={userPlan.features.unlimitedSummaries ? null : userPlan.monthlyLimit}
+            label="Monthly Usage"
+            period="month"
+          />
+        </div>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl">

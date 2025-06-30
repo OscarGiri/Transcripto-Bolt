@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { Video, Sparkles, LogIn } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useFreeTrial } from '../hooks/useFreeTrial';
+import { useUserPlan } from '../hooks/useUserPlan';
 import { UserMenu } from './UserMenu';
 import { AuthModal } from './AuthModal';
+import { PlanBadge } from './PlanBadge';
+import { UsageMeter } from './UsageMeter';
 
 export const Header: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const { user, loading } = useAuth();
   const { freeUsesRemaining } = useFreeTrial();
+  const userPlan = useUserPlan(user);
 
   return (
     <>
@@ -26,6 +30,19 @@ export const Header: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
+              {user && !userPlan.loading && (
+                <div className="flex items-center space-x-3">
+                  <PlanBadge plan={userPlan.plan} />
+                  {!userPlan.features.unlimitedSummaries && (
+                    <div className="bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
+                      <span className="text-sm text-blue-100">
+                        {userPlan.getRemainingAnalyses()} left today
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {!user && freeUsesRemaining > 0 && (
                 <div className="bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg">
                   <span className="text-sm text-blue-100">
