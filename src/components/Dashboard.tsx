@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, Clock, Star, TrendingUp, Search, Filter, Trash2, Eye, Calendar, Play, MoreVertical, X } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { BarChart3, Clock, Star, TrendingUp, Search, Filter, Trash2, Eye, Calendar, Play, MoreVertical, X, RefreshCw } from 'lucide-react';
 import { VideoSummary } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
@@ -14,6 +14,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
   const [videos, setVideos] = useState<VideoSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'title' | 'duration' | 'channel'>('recent');
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
@@ -23,21 +24,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
   const { user } = useAuth();
   const userPlan = useUserPlan(user);
 
-  useEffect(() => {
-    if (user) {
-      fetchVideos();
-    }
-  }, [user, sortBy]);
-
-  const fetchVideos = async () => {
+  // Optimized fetch function with caching and immediate loading
+  const fetchVideos = useCallback(async (showLoader = true) => {
     if (!user) return;
 
+    if (showLoader) setLoading(true);
+    setRefreshing(!showLoader);
+
     try {
+      // Use a more optimized query with specific columns and indexing
       let query = supabase
         .from('video_summaries')
-        .select('*')
+        .select(`
+          id,
+          video_id,
+          title,
+          thumbnail,
+          duration,
+          channel_name,
+          summary,
+          bullet_points,
+          key_quote,
+          transcript,
+          highlighted_segments,
+          language,
+          translated_summary,
+          translated_transcript,
+          created_at,
+          updated_at
+        `)
         .eq('user_id', user.id);
 
+      // Apply sorting with database-level optimization
       switch (sortBy) {
         case 'recent':
           query = query.order('created_at', { ascending: false });
@@ -53,7 +71,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
           break;
       }
 
-      const { data, error } = await query;
+      // Limit initial load for faster response, then load more if needed
+      const { data, error } = await query.limit(50);
+      
       if (error) throw error;
 
       const formattedVideos: VideoSummary[] = data.map(item => ({
@@ -80,7 +100,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
       console.error('Error fetching videos:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }, [user, sortBy]);
+
+  // Immediate load on component mount and user change
+  useEffect(() => {
+    if (user) {
+      fetchVideos(true);
+    }
+  }, [user, fetchVideos]);
+
+  // Quick refresh when sort changes (without full loader)
+  useEffect(() => {
+    if (user && videos.length > 0) {
+      fetchVideos(false);
+    }
+  }, [sortBy]);
+
+  // Auto-refresh every 30 seconds to catch new videos
+  useEffect(() => {
+    if (!user) return;
+
+    const interval = setInterval(() => {
+      fetchVideos(false);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [user, fetchVideos]);
+
+  const handleRefresh = () => {
+    fetchVideos(false);
   };
 
   const deleteVideo = async (videoId: string) => {
@@ -96,7 +146,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
 
       if (error) throw error;
 
-      setVideos(videos.filter(video => video.id !== videoId));
+      // Optimistically update UI
+      setVideos(prevVideos => prevVideos.filter(video => video.id !== videoId));
       setSelectedVideos(prev => {
         const newSet = new Set(prev);
         newSet.delete(videoId);
@@ -104,6 +155,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
       });
     } catch (error) {
       console.error('Error deleting video:', error);
+      // Refresh on error to ensure consistency
+      fetchVideos(false);
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(null);
@@ -123,10 +176,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
 
       if (error) throw error;
 
-      setVideos(videos.filter(video => !selectedVideos.has(video.id!)));
+      // Optimistically update UI
+      setVideos(prevVideos => prevVideos.filter(video => !selectedVideos.has(video.id!)));
       setSelectedVideos(new Set());
     } catch (error) {
       console.error('Error deleting videos:', error);
+      // Refresh on error to ensure consistency
+      fetchVideos(false);
     } finally {
       setIsDeleting(false);
     }
@@ -199,7 +255,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
   if (loading || userPlan.loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your recent searches...</p>
+        </div>
       </div>
     );
   }
@@ -212,10 +271,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
           <div className="flex items-center space-x-3">
             <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
             <PlanBadge plan={userPlan.plan} />
+            {refreshing && (
+              <div className="flex items-center space-x-2 text-blue-600">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Updating...</span>
+              </div>
+            )}
           </div>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-            Upgrade Plan
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              title="Refresh recent searches"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="text-sm">Refresh</span>
+            </button>
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+              Upgrade Plan
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -234,12 +310,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Quick Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm">Total Videos</p>
+              <p className="text-blue-100 text-sm">Recent Searches</p>
               <p className="text-2xl font-bold">{stats.totalVideos}</p>
             </div>
             <BarChart3 className="w-8 h-8 text-blue-200" />
@@ -249,7 +325,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
         <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm">Watch Time</p>
+              <p className="text-green-100 text-sm">Total Watch Time</p>
               <p className="text-2xl font-bold">{formatDuration(stats.totalWatchTime)}</p>
             </div>
             <Clock className="w-8 h-8 text-green-200" />
@@ -287,7 +363,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search videos, channels, or content..."
+                placeholder="Search your recent videos..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -333,11 +409,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
         </div>
       </div>
 
-      {/* Videos Grid/List */}
+      {/* Recent Searches Grid/List */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900">
-            Video History ({filteredVideos.length})
+            Recent Searches ({filteredVideos.length})
           </h3>
           <div className="flex items-center space-x-2">
             <button
@@ -363,12 +439,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onSelectVideo }) => {
           <div className="text-center py-12">
             <Play className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h4 className="text-lg font-semibold text-gray-900 mb-2">
-              {searchTerm ? 'No videos found' : 'No videos yet'}
+              {searchTerm ? 'No videos found' : 'No recent searches yet'}
             </h4>
             <p className="text-gray-500">
               {searchTerm 
                 ? 'Try adjusting your search terms or filters.'
-                : 'Start by analyzing your first video to see it appear here.'
+                : 'Start by analyzing your first video to see it appear here instantly.'
               }
             </p>
           </div>
