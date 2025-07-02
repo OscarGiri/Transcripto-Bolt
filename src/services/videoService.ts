@@ -138,6 +138,84 @@ export const getUserVideoSummaries = async (
   }
 };
 
+/**
+ * Enhanced YouTube video ID extraction function
+ * Supports all YouTube URL formats and logs extraction process for debugging
+ */
+export const extractVideoId = (url: string): string | null => {
+  console.log('🔍 Extracting video ID from URL:', url);
+  
+  if (!url || typeof url !== 'string') {
+    console.error('❌ Invalid URL provided:', url);
+    return null;
+  }
+
+  // Clean and normalize the URL
+  const cleanUrl = url.trim();
+  console.log('🧹 Cleaned URL:', cleanUrl);
+
+  // Comprehensive regex patterns for different YouTube URL formats
+  const patterns = [
+    // Standard watch URLs: https://www.youtube.com/watch?v=VIDEO_ID
+    // With additional parameters: https://www.youtube.com/watch?v=VIDEO_ID&t=30s&ab_channel=...
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+    
+    // Short URLs: https://youtu.be/VIDEO_ID
+    // With timestamp: https://youtu.be/VIDEO_ID?t=30
+    /(?:https?:\/\/)?youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    
+    // Embed URLs: https://www.youtube.com/embed/VIDEO_ID
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    
+    // YouTube mobile URLs: https://m.youtube.com/watch?v=VIDEO_ID
+    /(?:https?:\/\/)?m\.youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+    
+    // YouTube gaming URLs: https://gaming.youtube.com/watch?v=VIDEO_ID
+    /(?:https?:\/\/)?gaming\.youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+    
+    // YouTube music URLs: https://music.youtube.com/watch?v=VIDEO_ID
+    /(?:https?:\/\/)?music\.youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+    
+    // Direct video ID (11 characters, alphanumeric + _ -)
+    /^([a-zA-Z0-9_-]{11})$/
+  ];
+
+  // Try each pattern
+  for (let i = 0; i < patterns.length; i++) {
+    const pattern = patterns[i];
+    const match = cleanUrl.match(pattern);
+    
+    if (match && match[1]) {
+      const videoId = match[1];
+      console.log(`✅ Video ID extracted using pattern ${i + 1}:`, videoId);
+      
+      // Validate video ID format (11 characters, alphanumeric + underscore + hyphen)
+      if (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+        console.log('✅ Video ID validation passed:', videoId);
+        return videoId;
+      } else {
+        console.warn('⚠️ Video ID failed validation:', videoId);
+      }
+    }
+  }
+
+  console.error('❌ No valid video ID found in URL:', cleanUrl);
+  return null;
+};
+
+/**
+ * Validate YouTube URL format
+ */
+export const validateYouTubeURL = (url: string): boolean => {
+  console.log('🔍 Validating YouTube URL:', url);
+  
+  const videoId = extractVideoId(url);
+  const isValid = videoId !== null;
+  
+  console.log('✅ URL validation result:', isValid);
+  return isValid;
+};
+
 // Database of known videos with their actual content
 const KNOWN_VIDEOS: { [videoId: string]: Partial<VideoSummary> } = {
   '2sKzOSHiEmA': {
@@ -186,9 +264,12 @@ const generateVideoMetadata = (videoId: string): {
   channelName: string;
   thumbnail: string;
 } => {
+  console.log('🎬 Generating metadata for video ID:', videoId);
+  
   // Check if we have specific data for this video
   const knownVideo = KNOWN_VIDEOS[videoId];
   if (knownVideo) {
+    console.log('📚 Using known video data for:', videoId);
     return {
       title: knownVideo.title!,
       duration: knownVideo.duration!,
@@ -197,6 +278,8 @@ const generateVideoMetadata = (videoId: string): {
     };
   }
 
+  console.log('🎲 Generating synthetic metadata for unknown video:', videoId);
+  
   // Fallback to generated content for unknown videos
   const hash = hashCode(videoId);
   
@@ -240,6 +323,8 @@ const generateVideoMetadata = (videoId: string): {
   // Generate thumbnail URL
   const imageId = 3184338 + (hash % 1000);
   const thumbnail = `https://images.pexels.com/photos/${imageId}/pexels-photo-${imageId}.jpeg?auto=compress&cs=tinysrgb&w=800`;
+  
+  console.log('📊 Generated metadata:', { title, duration, channelName, thumbnail });
   
   return {
     title,
@@ -328,9 +413,12 @@ const generateRealisticMetadata = (durationMinutes: number, hash: number) => {
 
 // Generate content based on known video data or fallback to generated content
 const generateVideoContent = (videoId: string, metadata: any): VideoSummary => {
+  console.log('📝 Generating content for video ID:', videoId);
+  
   // Check if we have specific content for this video
   const knownVideo = KNOWN_VIDEOS[videoId];
   if (knownVideo) {
+    console.log('📚 Using known video content for:', videoId);
     return {
       videoId,
       title: metadata.title,
@@ -347,6 +435,8 @@ const generateVideoContent = (videoId: string, metadata: any): VideoSummary => {
     };
   }
 
+  console.log('🎲 Generating synthetic content for unknown video:', videoId);
+  
   // Fallback to generated content for unknown videos
   const hash = hashCode(videoId);
   
@@ -374,7 +464,7 @@ const generateVideoContent = (videoId: string, metadata: any): VideoSummary => {
   const memorableQuotes = generateMemorableQuotes(contentDepth, hash);
   const transcript = generateTranscript(metadata.title, totalMinutes, hash);
   
-  return {
+  const content = {
     videoId,
     title: metadata.title,
     thumbnail: metadata.thumbnail,
@@ -388,6 +478,9 @@ const generateVideoContent = (videoId: string, metadata: any): VideoSummary => {
     transcript,
     highlightedSegments: generateHighlights(transcript, hash)
   };
+  
+  console.log('✅ Generated content for video:', videoId);
+  return content;
 };
 
 // Generate transcript for specific known videos
@@ -891,32 +984,34 @@ const generateHighlights = (transcript: any[], hash: number): HighlightedSegment
 };
 
 export const analyzeVideo = async (url: string): Promise<ApiResponse> => {
+  console.log('🚀 Starting video analysis for URL:', url);
+  
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 3000));
   
   const videoId = extractVideoId(url);
   
   if (!videoId) {
+    console.error('❌ Video analysis failed: Invalid video ID');
     return {
       success: false,
       error: 'Invalid YouTube URL. Please check the URL and try again.'
     };
   }
   
+  console.log('✅ Video ID extracted successfully:', videoId);
+  
   // Generate metadata for the video
   const metadata = generateVideoMetadata(videoId);
+  console.log('📊 Generated metadata:', metadata);
   
   // Generate content based on video ID and metadata
   const videoData = generateVideoContent(videoId, metadata);
+  console.log('📝 Generated video content for:', videoId);
   
+  console.log('🎉 Video analysis completed successfully');
   return {
     success: true,
     data: videoData
   };
-};
-
-const extractVideoId = (url: string): string | null => {
-  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-  const match = url.match(regex);
-  return match ? match[1] : null;
 };

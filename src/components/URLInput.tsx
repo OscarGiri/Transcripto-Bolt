@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, AlertCircle, CheckCircle2, Lock, Clock, Zap } from 'lucide-react';
 import { UsageData } from '../hooks/useUsageTracking';
+import { validateYouTubeURL, extractVideoId } from '../services/videoService';
 
 interface URLInputProps {
   onSubmit: (url: string) => void;
@@ -19,26 +20,31 @@ export const URLInput: React.FC<URLInputProps> = ({
 }) => {
   const [url, setUrl] = useState('');
   const [isValid, setIsValid] = useState<boolean | null>(null);
-
-  const validateYouTubeURL = (url: string): boolean => {
-    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-    return youtubeRegex.test(url);
-  };
+  const [extractedVideoId, setExtractedVideoId] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    console.log('🔍 URLInput: URL changed:', value);
     setUrl(value);
     
     if (value.length > 0) {
-      setIsValid(validateYouTubeURL(value));
+      const valid = validateYouTubeURL(value);
+      const videoId = extractVideoId(value);
+      
+      console.log('✅ URLInput: Validation result:', { valid, videoId });
+      setIsValid(valid);
+      setExtractedVideoId(videoId);
     } else {
       setIsValid(null);
+      setExtractedVideoId(null);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isValid && url.trim() && canAnalyze) {
+      console.log('🚀 URLInput: Submitting URL:', url);
+      console.log('🎯 URLInput: Extracted video ID:', extractedVideoId);
       onSubmit(url.trim());
     }
   };
@@ -141,18 +147,28 @@ export const URLInput: React.FC<URLInputProps> = ({
           </div>
         </div>
         
+        {/* URL Validation Feedback */}
         {isValid === false && (
-          <p className="text-red-600 text-sm flex items-center space-x-2">
+          <div className="text-red-600 text-sm flex items-center space-x-2">
             <AlertCircle className="w-4 h-4" />
             <span>Please enter a valid YouTube URL</span>
-          </p>
+          </div>
         )}
 
+        {/* Video ID Display for Debugging */}
+        {extractedVideoId && isValid && (
+          <div className="text-green-600 text-sm flex items-center space-x-2">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Video ID: <code className="bg-green-50 px-2 py-1 rounded font-mono">{extractedVideoId}</code></span>
+          </div>
+        )}
+
+        {/* Usage Limit Warning */}
         {!canAnalyze && usageData.planType === 'free' && (
-          <p className="text-orange-600 text-sm flex items-center space-x-2">
+          <div className="text-orange-600 text-sm flex items-center space-x-2">
             <Clock className="w-4 h-4" />
             <span>Daily limit reached. Resets in {getTimeUntilReset()} or upgrade for unlimited access.</span>
-          </p>
+          </div>
         )}
         
         <button
@@ -176,6 +192,31 @@ export const URLInput: React.FC<URLInputProps> = ({
           )}
         </button>
       </form>
+
+      {/* Supported URL Formats */}
+      {url.length === 0 && (
+        <div className="mt-8 p-6 bg-blue-50 border border-blue-200 rounded-xl">
+          <h3 className="font-semibold text-blue-900 mb-3">📺 Supported YouTube URL Formats</h3>
+          <div className="space-y-2 text-sm text-blue-800">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <code className="bg-white px-2 py-1 rounded">https://www.youtube.com/watch?v=VIDEO_ID</code>
+            </div>
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <code className="bg-white px-2 py-1 rounded">https://youtu.be/VIDEO_ID</code>
+            </div>
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <code className="bg-white px-2 py-1 rounded">https://youtube.com/embed/VIDEO_ID</code>
+            </div>
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <span>URLs with timestamps and parameters are supported</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pro Features Teaser */}
       {usageData.planType === 'free' && (

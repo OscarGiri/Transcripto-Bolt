@@ -13,7 +13,7 @@ import { ApiKeyManagement } from './components/ApiKeyManagement';
 import { PricingPlans } from './components/PricingPlans';
 import { FeatureRestrictionModal } from './components/FeatureRestrictionModal';
 import { UsageLimitModal } from './components/UsageLimitModal';
-import { analyzeVideo, saveVideoSummary, updateVideoHighlights, translateAndSaveVideoSummary } from './services/videoService';
+import { analyzeVideo, saveVideoSummary, updateVideoHighlights, translateAndSaveVideoSummary, extractVideoId } from './services/videoService';
 import { VideoSummary, HighlightedSegment } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useUsageTracking } from './hooks/useUsageTracking';
@@ -61,42 +61,67 @@ function App() {
     });
   };
 
-  const extractVideoId = (url: string): string | null => {
-    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const match = url.match(regex);
-    return match ? match[1] : null;
-  };
-
   const handleVideoSubmit = async (url: string) => {
-    // Extract video ID to check if it's the same video
+    console.log('🎬 App: Starting video submission for URL:', url);
+    
+    // Extract and validate video ID first
     const newVideoId = extractVideoId(url);
+    console.log('🔍 App: Extracted video ID:', newVideoId);
     
     if (!newVideoId) {
+      console.error('❌ App: Invalid video ID extracted from URL:', url);
       setError('Invalid YouTube URL. Please check the URL and try again.');
       return;
     }
 
     // Check if user can analyze video (daily limit)
     if (!usageData.canPerformAction) {
+      console.warn('⚠️ App: Usage limit reached, showing modal');
       setShowUsageLimitModal(true);
       return;
     }
 
-    // Always clear previous state and start fresh analysis
+    // Check if this is the same video as currently loaded
+    if (currentVideoId === newVideoId && videoData) {
+      console.log('ℹ️ App: Same video already loaded, skipping analysis');
+      return;
+    }
+
+    // Clear previous state and start fresh analysis
+    console.log('🧹 App: Clearing previous state and starting fresh analysis');
     setVideoData(null);
     setCurrentVideoId(null);
     setError(null);
     setIsLoading(true);
 
     try {
+      console.log('📡 App: Calling analyzeVideo service with URL:', url);
       const response = await analyzeVideo(url);
+      console.log('📡 App: Received response from analyzeVideo:', response);
       
       if (response.success && response.data) {
+        console.log('✅ App: Analysis successful, setting video data');
+        console.log('📊 App: Video data received:', {
+          videoId: response.data.videoId,
+          title: response.data.title,
+          duration: response.data.duration,
+          channelName: response.data.channelName
+        });
+        
+        // Verify the video ID matches what we expected
+        if (response.data.videoId !== newVideoId) {
+          console.warn('⚠️ App: Video ID mismatch!', {
+            expected: newVideoId,
+            received: response.data.videoId
+          });
+        }
+        
         // Set the new video ID and data
         setCurrentVideoId(response.data.videoId);
         setVideoData(response.data);
         
         // Increment usage count
+        console.log('📈 App: Incrementing usage count');
         await incrementUsage('video_analysis', {
           video_id: response.data.videoId,
           video_title: response.data.title,
@@ -105,28 +130,36 @@ function App() {
         
         // Save to database if user is logged in
         if (user) {
+          console.log('💾 App: Saving video summary to database');
           const saveResult = await saveVideoSummary(user.id, response.data);
           if (!saveResult.success) {
-            console.error('Failed to save video summary:', saveResult.error);
+            console.error('❌ App: Failed to save video summary:', saveResult.error);
+          } else {
+            console.log('✅ App: Video summary saved successfully');
           }
         }
       } else {
+        console.error('❌ App: Analysis failed:', response.error);
         setError(response.error || 'Failed to analyze video. Please try again.');
       }
     } catch (err) {
+      console.error('❌ App: Network error during analysis:', err);
       setError('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
+      console.log('🏁 App: Video analysis process completed');
     }
   };
 
   const handleRetry = () => {
+    console.log('🔄 App: Retrying - clearing error state');
     setError(null);
     setVideoData(null);
     setCurrentVideoId(null);
   };
 
   const handleSelectVideo = (video: VideoSummary) => {
+    console.log('📺 App: Selecting video from dashboard:', video.videoId);
     // Clear any existing error when selecting a video from dashboard
     setError(null);
     setCurrentVideoId(video.videoId);
@@ -268,6 +301,11 @@ function App() {
                   <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                   <p className="text-gray-600">Analyzing your video...</p>
                   <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
+                  {currentVideoId && (
+                    <p className="text-xs text-blue-600 mt-2 font-mono">
+                      Video ID: {currentVideoId}
+                    </p>
+                  )}
                 </div>
               )}
               
