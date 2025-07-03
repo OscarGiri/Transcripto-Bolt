@@ -1,0 +1,8 @@
+[net]
+allowed_domains = [
+  "www.youtube.com",
+  "youtube.com",
+  "m.youtube.com",
+  "gaming.youtube.com",
+  "music.youtube.com"
+]
