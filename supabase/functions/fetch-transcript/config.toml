@@ -4,5 +4,6 @@ allowed_domains = [
   "youtube.com",
   "m.youtube.com",
   "gaming.youtube.com",
-  "music.youtube.com"
+  "music.youtube.com",
+  "googlevideo.com"
 ]
