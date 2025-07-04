@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface UsageData {
   currentUsage: number;
@@ -53,6 +53,20 @@ export const useUsageTracking = (user: User | null): UsageTrackingHook => {
 
   // Check current usage limits
   const checkUsage = useCallback(async (actionType: string = 'video_analysis'): Promise<UsageData> => {
+    // Check if Supabase is configured before attempting operations
+    if (!isSupabaseConfigured || !supabase) {
+      console.warn('Supabase is not configured. Using default usage limits.');
+      const defaultUsage: UsageData = {
+        currentUsage: 0,
+        dailyLimit: FREE_DAILY_LIMIT,
+        canPerformAction: true,
+        planType: 'free',
+        resetsAt: getNextMidnight()
+      };
+      setUsageData(defaultUsage);
+      return defaultUsage;
+    }
+
     try {
       const { data, error } = await supabase.rpc('check_usage_limit', {
         p_user_id: user?.id || null,
@@ -101,6 +115,12 @@ export const useUsageTracking = (user: User | null): UsageTrackingHook => {
     actionType: string = 'video_analysis',
     metadata: any = {}
   ): Promise<boolean> => {
+    // Check if Supabase is configured before attempting operations
+    if (!isSupabaseConfigured || !supabase) {
+      console.warn('Supabase is not configured. Cannot increment usage.');
+      return false;
+    }
+
     try {
       const { data, error } = await supabase.rpc('increment_usage', {
         p_user_id: user?.id || null,
